@@ -94,10 +94,10 @@ RSpec.describe Legion::Extensions::CognitivePrism::Helpers::Beam do
       active = beam.components.reject(&:faded?)
       next if active.empty?
 
-      sorted_intensities = active.sort_by { |c| -c.intensity }.map(&:intensity)
+      active.sort_by { |c| -c.intensity }.map(&:intensity)
       result = beam.recompose
       # verify result is non-empty and structured
-      expect(result).to include('|') if active.size > 1 # rubocop:disable RSpec/MultipleExpectations
+      expect(result).to include('|') if active.size > 1
     end
   end
 
@@ -115,7 +115,7 @@ RSpec.describe Legion::Extensions::CognitivePrism::Helpers::Beam do
 
     it 'returns the band with highest intensity' do
       beam.decompose!
-      expected = beam.components.max_by(&:intensity).band
+      beam.components.max_by(&:intensity).band
       # dominant_band prefers dominant? ones but falls back to max intensity
       expect(beam.dominant_band).to be_a(Symbol)
       expect(beam.dominant_band).not_to be_nil

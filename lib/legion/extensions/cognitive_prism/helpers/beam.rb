@@ -55,9 +55,8 @@ module Legion
             return nil if @components.empty?
 
             dominant = @components.select(&:dominant?)
-            return dominant.max_by(&:intensity)&.band if dominant.any?
-
-            @components.max_by(&:intensity)&.band
+            candidates = dominant.any? ? dominant : @components
+            candidates.max_by(&:intensity)&.band
           end
 
           def spectral_balance
@@ -66,8 +65,8 @@ module Legion
             total = @components.sum(&:intensity)
             return {} if total.zero?
 
-            @components.each_with_object({}) do |c, acc|
-              acc[c.band] = (c.intensity / total).round(10)
+            @components.to_h do |c|
+              [c.band, (c.intensity / total).round(10)]
             end
           end
 
@@ -92,7 +91,7 @@ module Legion
             total_length = content_str.length
             chunk_size   = total_length.positive? ? (total_length.to_f / Constants::SPECTRAL_BANDS.size).ceil : 1
 
-            Constants::SPECTRAL_BANDS.each_with_index.each_with_object({}) do |(band, idx), acc|
+            Constants::SPECTRAL_BANDS.each_with_index.with_object({}) do |(band, idx), acc|
               start_pos  = idx * chunk_size
               chunk      = total_length.positive? ? content_str[start_pos, chunk_size] || '' : ''
               acc[band]  = { raw: chunk, abstraction_level: abstraction_level_for(band) }
@@ -113,7 +112,7 @@ module Legion
             abstraction_map.fetch(band, :unknown)
           end
 
-          def compute_intensity(band, band_content)
+          def compute_intensity(_band, band_content)
             raw     = band_content[:raw].to_s
             level   = band_content[:abstraction_level]
             base    = raw.empty? ? 0.1 : (raw.length.to_f / 20).clamp(0.1, 1.0)

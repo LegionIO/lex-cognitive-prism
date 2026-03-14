@@ -23,7 +23,7 @@ module Legion
             beam = @beams.fetch(beam_id) { return { success: false, error: "Beam #{beam_id} not found" } }
 
             beam.decompose!
-            beam.components.each { |c| @components[component_key(beam_id, c.band)] = c }
+            beam.components.each { |c| @components["#{beam_id}:#{c.band}"] = c }
 
             Legion::Logging.debug "[cognitive_prism] decompose: beam=#{beam_id[0..7]} components=#{beam.components.size} purity=#{beam.purity.round(4)}"
             {
@@ -36,18 +36,11 @@ module Legion
           end
 
           def recompose(component_ids)
-            selected = component_ids.filter_map do |cid|
-              @components.values.find { |c| component_key(@components.key(c)&.split(':')&.first || '', c.band) == cid } ||
-                @components[cid]
-            end
-
-            active = selected.reject(&:faded?)
+            selected = component_ids.filter_map { |cid| resolve_component(cid) }
+            active   = selected.reject(&:faded?)
             return { success: true, synthesis: '', active_count: 0, total_count: 0 } if active.empty?
 
-            sorted  = active.sort_by { |c| -c.intensity }
-            parts   = sorted.map { |c| "[#{c.band}/#{c.wavelength}nm #{c.intensity.round(3)}]: #{c.content}" }
-            synthesis = parts.join(' | ')
-
+            synthesis = build_synthesis(active)
             { success: true, synthesis: synthesis, active_count: active.size, total_count: selected.size }
           end
 
@@ -117,8 +110,20 @@ module Legion
 
           private
 
-          def component_key(beam_id, band)
-            "#{beam_id}:#{band}"
+          def resolve_component(cid)
+            return @components[cid] if @components.key?(cid)
+
+            @components.values.find { |c| component_key(c.band) == cid }
+          end
+
+          def build_synthesis(active)
+            active.sort_by { |c| -c.intensity }
+                  .map { |c| "[#{c.band}/#{c.wavelength}nm #{c.intensity.round(3)}]: #{c.content}" }
+                  .join(' | ')
+          end
+
+          def component_key(band)
+            band.to_s
           end
         end
       end
